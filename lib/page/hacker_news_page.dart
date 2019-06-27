@@ -40,7 +40,7 @@ class _HackerNewsPageState extends State<HackerNewsPage> {
         stream: _bloc.topStories,
         builder: (BuildContext context, AsyncSnapshot<List<Story>> snapshot) {
           if (snapshot.hasData) return _buildTopStories(topStories: snapshot.data);
-          if (snapshot.hasError) return Center(child: Text(snapshot.error));
+          if (snapshot.hasError) return Center(child: Text('${snapshot.error}'));
           return Center(child: CircularProgressIndicator());
         },
       ),

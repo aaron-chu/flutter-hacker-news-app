@@ -12,6 +12,8 @@ class HackerNewsBloc extends Bloc {
   final _topStoryIds = List<int>();
   final _topStories = List<Story>();
 
+  final _httpClient = http.Client();
+
   var _isLoadingMoreTopStories = false;
   var _currentStoryIndex = 0;
 
@@ -24,7 +26,12 @@ class HackerNewsBloc extends Bloc {
   }
 
   void _loadInitTopStories() async {
-    _topStoryIds.addAll(await _loadTopStoryIds());
+    try {
+      _topStoryIds.addAll(await _loadTopStoryIds());
+    } catch (e) {
+      _topStoriesStreamController.addError('Unknown Error');
+      return;
+    }
 
     loadMoreTopStories(pageSize: INIT_PAGE_SIZE);
   }
@@ -35,9 +42,13 @@ class HackerNewsBloc extends Bloc {
     _isLoadingMoreTopStories = true;
     final storySize = min(_currentStoryIndex + pageSize, _topStoryIds.length);
     for (int index = _currentStoryIndex; index < storySize; index++) {
-      _topStories.add(await _loadStory(_topStoryIds[index]));
+      try {
+        _topStories.add(await _loadStory(_topStoryIds[index]));
+      } catch (e) {
+        print('Failed to load story with id ${_topStoryIds[index]}');
+      }
     }
-    _currentStoryIndex = storySize;
+    _currentStoryIndex = _topStories.length;
     _topStoriesStreamController.add(_topStories);
     _isLoadingMoreTopStories = false;
   }
@@ -45,7 +56,7 @@ class HackerNewsBloc extends Bloc {
   bool hasMoreStories() => _currentStoryIndex < _topStoryIds.length;
 
   Future<Story> _loadStory(int id) async {
-    final response = await http.get('https://hacker-news.firebaseio.com/v0/item/$id.json');
+    final response = await _httpClient.get('https://hacker-news.firebaseio.com/v0/item/$id.json');
     if (response.statusCode != 200) return null;
 
     print('_loadStory: ${json.decode(response.body)}');
@@ -53,7 +64,7 @@ class HackerNewsBloc extends Bloc {
   }
 
   Future<List<int>> _loadTopStoryIds() async {
-    final response = await http.get('https://hacker-news.firebaseio.com/v0/topstories.json');
+    final response = await _httpClient.get('https://hacker-news.firebaseio.com/v0/topstories.json');
     if (response.statusCode != 200) return <int>[];
 
     print("_loadTopStoryIds: ${json.decode(response.body)}");
@@ -63,6 +74,7 @@ class HackerNewsBloc extends Bloc {
   @override
   void dispose() {
     _topStoriesStreamController.close();
+    _httpClient.close();
     super.dispose();
   }
 }
