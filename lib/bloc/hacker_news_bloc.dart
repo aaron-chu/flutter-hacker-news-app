@@ -13,7 +13,7 @@ class HackerNewsBloc extends Bloc {
   final _topStories = List<Story>();
 
   var _isLoadingMoreTopStories = false;
-  var currentStoryIndex = 0;
+  var _currentStoryIndex = 0;
 
   StreamController<List<Story>> _topStoriesStreamController = StreamController();
 
@@ -33,16 +33,16 @@ class HackerNewsBloc extends Bloc {
     if (_isLoadingMoreTopStories) return;
 
     _isLoadingMoreTopStories = true;
-    final storySize = min(currentStoryIndex + pageSize, _topStoryIds.length);
-    for (int index = currentStoryIndex; index < storySize; index++) {
+    final storySize = min(_currentStoryIndex + pageSize, _topStoryIds.length);
+    for (int index = _currentStoryIndex; index < storySize; index++) {
       _topStories.add(await _loadStory(_topStoryIds[index]));
     }
-    currentStoryIndex = storySize;
+    _currentStoryIndex = storySize;
     _topStoriesStreamController.add(_topStories);
     _isLoadingMoreTopStories = false;
   }
 
-  bool hasMoreStories() => currentStoryIndex < _topStoryIds.length;
+  bool hasMoreStories() => _currentStoryIndex < _topStoryIds.length;
 
   Future<Story> _loadStory(int id) async {
     final response = await http.get('https://hacker-news.firebaseio.com/v0/item/$id.json');
