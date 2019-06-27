@@ -1,8 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
-import 'package:flutter_hacker_news_app/datamodel/story.dart';
-import 'package:http/http.dart' as http;
 import 'dart:math';
+
+import 'package:flutter_hacker_news_app/datamodel/story.dart';
+import 'package:flutter_hacker_news_app/repository/hacker_news_repository.dart';
+
 import 'base_bloc.dart';
 
 class HackerNewsBloc extends Bloc {
@@ -11,8 +12,7 @@ class HackerNewsBloc extends Bloc {
 
   final _topStoryIds = List<int>();
   final _topStories = List<Story>();
-
-  final _httpClient = http.Client();
+  final _repository = HackerNewsRepository();
 
   var _isLoadingMoreTopStories = false;
   var _currentStoryIndex = 0;
@@ -27,7 +27,7 @@ class HackerNewsBloc extends Bloc {
 
   void _loadInitTopStories() async {
     try {
-      _topStoryIds.addAll(await _loadTopStoryIds());
+      _topStoryIds.addAll(await _repository.loadTopStoryIds());
     } catch (e) {
       _topStoriesStreamController.addError('Unknown Error');
       return;
@@ -43,7 +43,7 @@ class HackerNewsBloc extends Bloc {
     final storySize = min(_currentStoryIndex + pageSize, _topStoryIds.length);
     for (int index = _currentStoryIndex; index < storySize; index++) {
       try {
-        _topStories.add(await _loadStory(_topStoryIds[index]));
+        _topStories.add(await _repository.loadStory(_topStoryIds[index]));
       } catch (e) {
         print('Failed to load story with id ${_topStoryIds[index]}');
       }
@@ -55,26 +55,9 @@ class HackerNewsBloc extends Bloc {
 
   bool hasMoreStories() => _currentStoryIndex < _topStoryIds.length;
 
-  Future<Story> _loadStory(int id) async {
-    final response = await _httpClient.get('https://hacker-news.firebaseio.com/v0/item/$id.json');
-    if (response.statusCode != 200) return null;
-
-    print('_loadStory: ${json.decode(response.body)}');
-    return Story.fromJson(json.decode(response.body));
-  }
-
-  Future<List<int>> _loadTopStoryIds() async {
-    final response = await _httpClient.get('https://hacker-news.firebaseio.com/v0/topstories.json');
-    if (response.statusCode != 200) return <int>[];
-
-    print("_loadTopStoryIds: ${json.decode(response.body)}");
-    return List<int>.from(json.decode(response.body));
-  }
-
   @override
   void dispose() {
     _topStoriesStreamController.close();
-    _httpClient.close();
-    super.dispose();
+    _repository.dispose();
   }
 }
